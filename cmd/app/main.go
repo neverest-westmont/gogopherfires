@@ -33,6 +33,7 @@ func displayData(db *sql.DB) {
 		var latitude string
 		var longitude string
 		row.Scan(&name, &firesize, &latitude, &longitude)
+		log.SetFlags(0)
 		log.Println("Fire: ", name, " ", firesize, " ", latitude, " ", longitude)
 	}
 }
