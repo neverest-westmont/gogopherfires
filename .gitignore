@@ -19,3 +19,7 @@
 
 # Go workspace file
 go.work
+
+# Ignore database files
+.DS_store
+FPA_FOD_20221014.sqlite
