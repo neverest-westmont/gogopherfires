@@ -145,6 +145,7 @@ func displayData3(outfile string, wg *sync.WaitGroup) {
 func timer(name string) func() {
 	start := time.Now()
 	return func() {
-		fmt.Printf("%s took %v\n", name, time.Since(start))
+		duration := time.Since(start)
+		fmt.Printf("%s took %6v seconds\n", name, duration.Seconds())
 	}
 }
