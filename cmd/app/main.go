@@ -27,62 +27,36 @@ func callLinear(wg *sync.WaitGroup) {
 	defer wg.Done()
 	var wgl sync.WaitGroup
 	defer timer("callLinear")()
-	firedb1, err1 := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
-	firedb2, err2 := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
-	firedb3, err3 := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
-	if err1 != nil {
-		log.Fatal(err1)
-	}
-	if err2 != nil {
-		log.Fatal(err2)
-	}
-	if err3 != nil {
-		log.Fatal(err3)
-	}
-	defer firedb1.Close()
-	defer firedb2.Close()
-	defer firedb3.Close()
 
 	wgl.Add(3)
-	displayData1(firedb1, "linearOut1", &wgl)
-	displayData2(firedb2, "linearOut2", &wgl)
-	displayData3(firedb3, "linearOut3", &wgl)
+	displayData1("linearOut1", &wgl)
+	displayData2("linearOut2", &wgl)
+	displayData3("linearOut3", &wgl)
 }
 
 func callConcurrent(wg *sync.WaitGroup) {
 	defer wg.Done()
 	var wgc sync.WaitGroup
 	defer timer("callConcurrent")()
-	firedb1, err1 := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
-	firedb2, err2 := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
-	firedb3, err3 := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
-	if err1 != nil {
-		log.Fatal(err1)
-	}
-	if err2 != nil {
-		log.Fatal(err2)
-	}
-	if err3 != nil {
-		log.Fatal(err3)
-	}
-
-	defer firedb1.Close()
-	defer firedb2.Close()
-	defer firedb3.Close()
 
 	wgc.Add(3)
-	go displayData1(firedb1, "concurrentOut1", &wgc)
-	go displayData2(firedb2, "concurrentOut2", &wgc)
-	go displayData3(firedb3, "concurrentOut3", &wgc)
+	go displayData1("concurrentOut1", &wgc)
+	go displayData2("concurrentOut2", &wgc)
+	go displayData3("concurrentOut3", &wgc)
 }
 
-func displayData1(db *sql.DB, outfile string, wg *sync.WaitGroup) {
+func displayData1(outfile string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	file, err := os.Create(outfile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	row, err := db.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
+	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer firedb.Close()
+	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
 							FROM Fires
 							WHERE NWCG_REPORTING_UNIT_NAME = 'Eldorado National Forest'
 							AND FIRE_SIZE > 22
@@ -104,13 +78,18 @@ func displayData1(db *sql.DB, outfile string, wg *sync.WaitGroup) {
 	}
 }
 
-func displayData2(db *sql.DB, outfile string, wg *sync.WaitGroup) {
+func displayData2(outfile string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	file, err := os.Create(outfile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	row, err := db.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
+	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer firedb.Close()
+	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
 							FROM Fires
 							WHERE FIRE_SIZE < 22
 							ORDER BY FIRE_SIZE ASC`)
@@ -131,13 +110,18 @@ func displayData2(db *sql.DB, outfile string, wg *sync.WaitGroup) {
 	}
 }
 
-func displayData3(db *sql.DB, outfile string, wg *sync.WaitGroup) {
+func displayData3(outfile string, wg *sync.WaitGroup) {
 	defer wg.Done()
 	file, err := os.Create(outfile)
 	if err != nil {
 		log.Fatal(err)
 	}
-	row, err := db.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
+	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer firedb.Close()
+	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
 								FROM Fires
 								WHERE FIRE_SIZE > 22
 								ORDER BY FIRE_SIZE ASC`)
