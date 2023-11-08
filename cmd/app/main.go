@@ -146,6 +146,6 @@ func timer(name string) func() {
 	start := time.Now()
 	return func() {
 		duration := time.Since(start)
-		fmt.Printf("%s took %6v seconds\n", name, duration.Seconds())
+		fmt.Printf("%s took %10f seconds\n", name, duration.Seconds())
 	}
 }
