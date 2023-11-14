@@ -14,7 +14,11 @@ import (
 )
 
 func getRoute(w http.ResponseWriter, r *http.Request) {
-	io.WriteString(w, "This is where our 2 maps will be!\n")
+	http.ServeFile(w, r, "mapPage.html")
+}
+
+func helloHandler(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func main() {
@@ -31,11 +35,6 @@ func main() {
 	fmt.Println("Waiting for goroutines to finish...")
 	wg.Wait()
 	fmt.Println("Finished.")
-
-	http.HandleFunc("/hello", func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprintf(w, "Hello!")
-	})
-
 }
 
 func callLinear(wg *sync.WaitGroup) {
