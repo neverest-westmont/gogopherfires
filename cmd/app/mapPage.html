@@ -14,14 +14,25 @@
 
   <body>
     <p>Go Gophers Maps</p>
-    <div id="map" style="height:500px;"></div>
+    <div id="mapLinear" style="height:300px;"></div>
     <script type="text/javascript" charset="utf-8">
-      var map = L.map("map").setView([34.4208, -119.6982], 13);
+      var mapLinear = L.map("mapLinear").setView([34.5, -119.7], 13);
 
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
           attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-      }).addTo(map);
+      }).addTo(mapLinear);
+    </script>
+    <br/>
+
+    <div id="mapConcurrent" style="height:300px"></div>
+    <script>
+      var mapConcurrent = L.map("mapConcurrent").setView([34.4208, -119.6982], 13);
+
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+          maxZoom: 19,
+          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(mapConcurrent);
     </script>
   </body>
 </html>
