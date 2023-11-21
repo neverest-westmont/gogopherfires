@@ -10,29 +10,41 @@
     crossorigin=""></script>
 
     <title>Go Gophers Maps</title>
+
+    <style>
+      .map-container {
+    width: 50%;
+    float: left; 
+    }
+    </style>
+
+
   </head>
 
   <body>
     <p>Go Gophers Maps</p>
-    <div id="mapLinear" style="height:400px;"></div>
-    <script type="text/javascript" charset="utf-8">
-      var mapLinear = L.map("mapLinear").setView([39, -100], 4);
+    <div class="map-container"> 
+      <div id="mapLinear" style="height:700px;"></div>
+        <script type="text/javascript" charset="utf-8">
+          var mapLinear = L.map("mapLinear").setView([39, -100], 4);
 
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-      }).addTo(mapLinear);
-    </script>
-    <br/>
+          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+              maxZoom: 19,
+              attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          }).addTo(mapLinear);
+        </script>
+    </div> 
 
-    <div id="mapConcurrent" style="height:400px"></div>
-    <script>
-      var mapConcurrent = L.map("mapConcurrent").setView([39, -100], 4);
+    <div class="map-container"> 
+    <div id="mapConcurrent" style="height:700px"></div>
+      <script>
+        var mapConcurrent = L.map("mapConcurrent").setView([39, -100], 4);
 
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          maxZoom: 19,
-          attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-      }).addTo(mapConcurrent);
-    </script>
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+        }).addTo(mapConcurrent);
+      </script>
+    </div> 
   </body>
 </html>
