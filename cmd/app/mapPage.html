@@ -14,9 +14,9 @@
 
   <body>
     <p>Go Gophers Maps</p>
-    <div id="mapLinear" style="height:300px;"></div>
+    <div id="mapLinear" style="height:400px;"></div>
     <script type="text/javascript" charset="utf-8">
-      var mapLinear = L.map("mapLinear").setView([34.5, -119.7], 13);
+      var mapLinear = L.map("mapLinear").setView([39, -100], 4);
 
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
@@ -25,9 +25,9 @@
     </script>
     <br/>
 
-    <div id="mapConcurrent" style="height:300px"></div>
+    <div id="mapConcurrent" style="height:400px"></div>
     <script>
-      var mapConcurrent = L.map("mapConcurrent").setView([34.4208, -119.6982], 13);
+      var mapConcurrent = L.map("mapConcurrent").setView([39, -100], 4);
 
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
