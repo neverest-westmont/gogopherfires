@@ -1,56 +1,79 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-    crossorigin=""/>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-    crossorigin=""></script>
-
-    <title>Go Gophers Maps</title>
-
-    <style>
-      .map-container {
-        width: 48%;
-        float: left; 
-        border-style: solid;
-        border-width: 3px;
-        border-color: white;
+<head>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+        crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+          crossorigin=""></script>
+  <title>Go Gophers Maps</title>
+  <style>
+    .map-container {
+      width: 48%;
+      float: left; 
+      border-style: solid;
+      border-width: 3px;
+      border-color: white;
     }
-    </style>
+  </style>
+</head>
 
+<body>
+  <p>Go Gophers Maps</p>
+  <div class="map-container"> 
+    <h1>Serialized Loading</h1>
+    <div id="mapSerial" style="height:700px;"></div>
+    <script type="text/javascript" charset="utf-8">
+      var mapSerial = L.map("mapSerial").setView([39, -95], 4);
 
-  </head>
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(mapSerial);
 
-  <body>
-    <p>Go Gophers Maps</p>
-    <div class="map-container"> 
-      <div id="mapLinear" style="height:700px;"></div>
-        <script type="text/javascript" charset="utf-8">
-          var mapLinear = L.map("mapLinear").setView([39, -95], 4);
+      const wsSerial = new WebSocket("ws://localhost:8080/serial");
+      wsSerial.onmessage = (event) => handleWebSocketMessage(event, mapSerial);
+    </script>
+  </div> 
 
-          L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-              maxZoom: 19,
-              attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          }).addTo(mapLinear);
- 
-          // const ws = new WebSocket("wss://localhost:8080/websocket", "upgrade");
-          // ws.onmessage = (event) => { console.log(ws)}
-        </script>
-    </div> 
-
-    <div class="map-container"> 
+  <div class="map-container"> 
+    <h1>Concurrent Loading</h1>
     <div id="mapConcurrent" style="height:700px"></div>
-      <script>
-        var mapConcurrent = L.map("mapConcurrent").setView([39, -95], 4);
+    <script type="text/javascript" charset="utf-8">
+      var mapConcurrent = L.map("mapConcurrent").setView([39, -95], 4);
 
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        }).addTo(mapConcurrent);
-      </script>
-    </div> 
-  </body>
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(mapConcurrent);
+
+      const wsConcurrent = new WebSocket("ws://localhost:8080/concurrent");
+      wsConcurrent.onmessage = (event) => handleWebSocketMessage(event, mapConcurrent);
+
+      function handleWebSocketMessage(event, map) {
+        try {
+          const fireData = JSON.parse(event.data);
+
+          fireData.forEach(fire => {
+            const latitude = parseFloat(fire.Latitude);
+            const longitude = parseFloat(fire.Longitude);
+
+            if (isNaN(latitude) || isNaN(longitude)) {
+              console.error("Invalid latitude or longitude:", fire);
+              return;
+            }
+
+            L.marker([latitude, longitude])
+              .addTo(map)
+              .bindPopup(`${fire.Name}`)
+              .openPopup();
+          });
+        } catch (error) {
+          console.error("Error processing WebSocket message:", error);
+        }
+      }
+    </script>
+  </div> 
+</body>
 </html>
