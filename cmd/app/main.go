@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
@@ -40,10 +41,10 @@ func websocketHandler(writer http.ResponseWriter, request *http.Request) {
 
 	if request.URL.Path == "/serial" {
 		wg.Add(1)
-		go sendToWebSocket(conn, &wg)
+		go sendToWebSocketSerial(conn, &wg)
 	} else if request.URL.Path == "/concurrent" {
 		wg.Add(1)
-		go sendToWebSocket(conn, &wg)
+		go sendToWebSocketConcurrent(conn, &wg)
 	}
 }
 
@@ -59,14 +60,19 @@ func main() {
 	}
 }
 
-func sendToWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) {
+func sendToWebSocketSerial(conn *websocket.Conn, wg *sync.WaitGroup) {
 	defer wg.Done()
 
-	fires, err := fetchFireData()
+	startTime := time.Now()
+
+	fires, err := fetchFireDataSerial()
 	if err != nil {
 		log.Println("Error fetching data from database:", err)
 		return
 	}
+
+	duration := time.Since(startTime)
+	log.Printf("Serial query took %s\n", duration)
 
 	firesJSON, err := json.Marshal(fires)
 	if err != nil {
@@ -81,7 +87,42 @@ func sendToWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) {
 	}
 }
 
-func fetchFireData() ([]Fire, error) {
+func sendToWebSocketConcurrent(conn *websocket.Conn, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	startTime := time.Now()
+
+	firesCh := make(chan []Fire, 1)
+
+	go func() {
+		defer close(firesCh)
+		fires, err := fetchFireDataConcurrent()
+		if err != nil {
+			log.Println("Error fetching data from database concurrently:", err)
+			return
+		}
+		firesCh <- fires
+	}()
+
+	fires := <-firesCh
+
+	duration := time.Since(startTime)
+	log.Printf("Concurrent query took %s\n", duration)
+
+	firesJSON, err := json.Marshal(fires)
+	if err != nil {
+		log.Println("Error marshaling fires:", err)
+		return
+	}
+
+	err = conn.WriteMessage(websocket.TextMessage, firesJSON)
+	if err != nil {
+		log.Println("Error sending fires through WebSocket:", err)
+		return
+	}
+}
+
+func fetchFireDataSerial() ([]Fire, error) {
 	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
 	if err != nil {
 		return nil, err
@@ -89,8 +130,8 @@ func fetchFireData() ([]Fire, error) {
 	defer firedb.Close()
 
 	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
-							FROM Fires
-							LIMIT 1000`)
+							FROM Fires LIMIT 1000;
+							`)
 	if err != nil {
 		return nil, err
 	}
@@ -104,6 +145,57 @@ func fetchFireData() ([]Fire, error) {
 		log.SetFlags(0)
 		fires = append(fires, fire)
 	}
+
+	return fires, nil
+}
+
+func fetchFireDataConcurrent() ([]Fire, error) {
+	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
+	if err != nil {
+		return nil, err
+	}
+	defer firedb.Close()
+
+	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
+							FROM Fires LIMIT 1000;
+							`)
+	if err != nil {
+		return nil, err
+	}
+	defer row.Close()
+
+	firesCh := make(chan Fire, 1000)
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+
+	go func() {
+		defer close(firesCh)
+		defer close(done)
+
+		for row.Next() {
+			var fire Fire
+			row.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
+			log.SetFlags(0)
+
+			wg.Add(1)
+			go func(fire Fire) {
+				defer wg.Done()
+				firesCh <- fire
+			}(fire)
+		}
+
+		wg.Wait()
+	}()
+
+	var fires []Fire
+
+	go func() {
+		for fire := range firesCh {
+			fires = append(fires, fire)
+		}
+	}()
+
+	<-done
 
 	return fires, nil
 }
