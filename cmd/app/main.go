@@ -85,6 +85,8 @@ func sendToWebSocketSerial(conn *websocket.Conn, wg *sync.WaitGroup) {
 		log.Println("Error sending fires through WebSocket:", err)
 		return
 	}
+	log.Printf("Sent serial data1")
+
 }
 
 func sendToWebSocketConcurrent(conn *websocket.Conn, wg *sync.WaitGroup) {
@@ -120,6 +122,8 @@ func sendToWebSocketConcurrent(conn *websocket.Conn, wg *sync.WaitGroup) {
 		log.Println("Error sending fires through WebSocket:", err)
 		return
 	}
+	log.Printf("Sent concurrent data1")
+
 }
 
 func fetchFireDataSerial() ([]Fire, error) {
