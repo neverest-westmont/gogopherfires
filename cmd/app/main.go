@@ -40,10 +40,10 @@ func websocketHandler(writer http.ResponseWriter, request *http.Request) {
 
 	if request.URL.Path == "/serial" {
 		wg.Add(1)
-		go sendToWebSocket(conn, "serialOut1", &wg)
+		go sendToWebSocket(conn, &wg)
 	} else if request.URL.Path == "/concurrent" {
 		wg.Add(1)
-		go sendToWebSocket(conn, "concurrentOut1", &wg)
+		go sendToWebSocket(conn, &wg)
 	}
 }
 
@@ -59,7 +59,7 @@ func main() {
 	}
 }
 
-func sendToWebSocket(conn *websocket.Conn, outfile string, wg *sync.WaitGroup) {
+func sendToWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) {
 	defer wg.Done()
 
 	fires, err := fetchFireData()
