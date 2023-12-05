@@ -2,16 +2,22 @@ package main
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
-	"os"
-	"sync"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
+
+type Fire struct {
+	Name      string
+	FireSize  string
+	Latitude  string
+	Longitude string
+	Year      string
+}
 
 func getRoute(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "mapPage.html")
@@ -22,49 +28,39 @@ func helloHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func main() {
-	http.HandleFunc("/", getRoute)
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatal(err)
-	}
+	// http.HandleFunc("/", getRoute)
+	// if err := http.ListenAndServe(":8080", nil); err != nil {
+	// 	log.Fatal(err)
+	// }
 
-	var wg sync.WaitGroup
-	wg.Add(2)
-	go callLinear(&wg)
-	go callConcurrent(&wg)
+	channelConcurrent := make(chan []byte)
+	channelLinear := make(chan []byte)
+	go callConcurrent(channelConcurrent)
+	go callLinear(channelLinear)
 
 	fmt.Println("Waiting for goroutines to finish...")
-	wg.Wait()
+
+	linChan := <-channelLinear
+	concChan := <-channelConcurrent
+	fmt.Println(concChan)
+	fmt.Println(linChan)
+
 	fmt.Println("Finished.")
 }
 
-func callLinear(wg *sync.WaitGroup) {
-	defer wg.Done()
-	var wgl sync.WaitGroup
+func callLinear(channelLinear chan []byte) {
 	defer timer("callLinear")()
-
-	wgl.Add(3)
-	displayData1("linearOut1", &wgl)
-	displayData2("linearOut2", &wgl)
-	displayData3("linearOut3", &wgl)
+	displayDataLinear("linearOut1", channelLinear)
 }
 
-func callConcurrent(wg *sync.WaitGroup) {
-	defer wg.Done()
-	var wgc sync.WaitGroup
+func callConcurrent(channelConcurrent chan []byte) {
 	defer timer("callConcurrent")()
 
-	wgc.Add(3)
-	go displayData1("concurrentOut1", &wgc)
-	go displayData2("concurrentOut2", &wgc)
-	go displayData3("concurrentOut3", &wgc)
+	go displayDataConcurrent("concurrentOut1", channelConcurrent)
 }
 
-func displayData1(outfile string, wg *sync.WaitGroup) {
-	defer wg.Done()
-	file, err := os.Create(outfile)
-	if err != nil {
-		log.Fatal(err)
-	}
+func displayDataLinear(outfile string, channelLinear chan []byte) []byte {
+
 	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
 	if err != nil {
 		log.Fatal(err)
@@ -72,32 +68,27 @@ func displayData1(outfile string, wg *sync.WaitGroup) {
 	defer firedb.Close()
 	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
 							FROM Fires
-							WHERE NWCG_REPORTING_UNIT_NAME = 'Eldorado National Forest'
-							AND FIRE_SIZE > 22
-							ORDER BY FIRE_SIZE ASC`)
+							ORDER BY FIRE_SIZE ASC LIMIT 3`)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	defer row.Close()
-	for row.Next() { // Iterate and fetch the records from result cursor
-		var name string
-		var firesize string
-		var latitude string
-		var longitude string
-		var year string
-		row.Scan(&name, &firesize, &latitude, &longitude, &year)
-		log.SetFlags(0)
-		mw := io.MultiWriter(file)
-		fmt.Fprintf(mw, "Fire: %s %s %s %s %s\n", name, firesize, latitude, longitude, year)
+
+	var fires []Fire
+
+	for row.Next() {
+		var fire Fire
+		row.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
+		fires = append(fires, fire)
 	}
+	firesJSON, err := json.Marshal(fires)
+	channelLinear <- firesJSON
+	return firesJSON
 }
 
-func displayData2(outfile string, wg *sync.WaitGroup) {
-	defer wg.Done()
-	file, err := os.Create(outfile)
-	if err != nil {
-		log.Fatal(err)
-	}
+func displayDataConcurrent(outfile string, channelConcurrent chan []byte) []byte {
+
 	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
 	if err != nil {
 		log.Fatal(err)
@@ -105,55 +96,23 @@ func displayData2(outfile string, wg *sync.WaitGroup) {
 	defer firedb.Close()
 	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
 							FROM Fires
-							WHERE FIRE_SIZE < 22
-							ORDER BY FIRE_SIZE ASC`)
+							ORDER BY FIRE_SIZE ASC LIMIT 3`)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer row.Close()
-	for row.Next() { // Iterate and fetch the records from result cursor
-		var name string
-		var firesize string
-		var latitude string
-		var longitude string
-		var year string
-		row.Scan(&name, &firesize, &latitude, &longitude, &year)
-		log.SetFlags(0)
-		mw := io.MultiWriter(file)
-		fmt.Fprintf(mw, "Fire: %s %s %s %s %s\n", name, firesize, latitude, longitude, year)
-	}
-}
 
-func displayData3(outfile string, wg *sync.WaitGroup) {
-	defer wg.Done()
-	file, err := os.Create(outfile)
-	if err != nil {
-		log.Fatal(err)
-	}
-	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer firedb.Close()
-	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
-								FROM Fires
-								WHERE FIRE_SIZE > 22
-								ORDER BY FIRE_SIZE ASC`)
-	if err != nil {
-		log.Fatal(err)
-	}
 	defer row.Close()
-	for row.Next() { // Iterate and fetch the records from result cursor
-		var name string
-		var firesize string
-		var latitude string
-		var longitude string
-		var year string
-		row.Scan(&name, &firesize, &latitude, &longitude, &year)
-		log.SetFlags(0)
-		mw := io.MultiWriter(file)
-		fmt.Fprintf(mw, "Fire: %s %s %s %s %s\n", name, firesize, latitude, longitude, year)
+
+	var fires []Fire
+
+	for row.Next() {
+		var fire Fire
+		row.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
+		fires = append(fires, fire)
 	}
+	firesJSON, err := json.Marshal(fires)
+	channelConcurrent <- firesJSON
+	return firesJSON
 }
 
 func timer(name string) func() {
