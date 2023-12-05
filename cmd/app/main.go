@@ -28,7 +28,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-func websocketHandler(writer http.ResponseWriter, request *http.Request) {
+func websocketHandlerS(writer http.ResponseWriter, request *http.Request) {
 	conn, err := upgrader.Upgrade(writer, request, nil)
 	if err != nil {
 		log.Println(err)
@@ -36,20 +36,26 @@ func websocketHandler(writer http.ResponseWriter, request *http.Request) {
 	}
 	defer conn.Close()
 
-	var wg sync.WaitGroup
-	defer wg.Wait()
-	wg.Add(1)
-	go sendToWebSocketConcurrent(conn, &wg)
 	sendToWebSocketSerial(conn)
+}
 
+func websocketHandlerC(writer http.ResponseWriter, request *http.Request) {
+	conn, err := upgrader.Upgrade(writer, request, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer conn.Close()
+
+	sendToWebSocketConcurrent(conn)
 }
 
 func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "mapPage.html")
 	})
-	http.HandleFunc("/serial", websocketHandler)
-	http.HandleFunc("/concurrent", websocketHandler)
+	http.HandleFunc("/serial", websocketHandlerS)
+	http.HandleFunc("/concurrent", websocketHandlerC)
 
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
@@ -84,8 +90,7 @@ func sendToWebSocketSerial(conn *websocket.Conn) {
 
 }
 
-func sendToWebSocketConcurrent(conn *websocket.Conn, wg *sync.WaitGroup) {
-	defer wg.Done()
+func sendToWebSocketConcurrent(conn *websocket.Conn) {
 
 	startTime := time.Now()
 
@@ -136,16 +141,16 @@ func fetchFireDataSerial() ([]Fire, error) {
 	}
 	defer row.Close()
 
-	var fires []Fire
+	var firesS []Fire
 
 	for row.Next() {
 		var fire Fire
 		row.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
 		log.SetFlags(0)
-		fires = append(fires, fire)
+		firesS = append(firesS, fire)
 	}
 
-	return fires, nil
+	return firesS, nil
 }
 
 func fetchFireDataConcurrent() ([]Fire, error) {
@@ -156,7 +161,7 @@ func fetchFireDataConcurrent() ([]Fire, error) {
 	defer firedb.Close()
 
 	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
-							FROM Fires LIMIT 1000;
+							FROM Fires LIMIT 10;
 							`)
 	if err != nil {
 		return nil, err
@@ -186,15 +191,15 @@ func fetchFireDataConcurrent() ([]Fire, error) {
 		wg.Wait()
 	}()
 
-	var fires []Fire
+	var firesC []Fire
 
 	go func() {
 		for fire := range firesCh {
-			fires = append(fires, fire)
+			firesC = append(firesC, fire)
 		}
 	}()
 
 	<-done
 
-	return fires, nil
+	return firesC, nil
 }

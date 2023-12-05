@@ -32,6 +32,9 @@
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       }).addTo(mapSerial);
+    </script>
+
+    <script>
 
       const wsSerial = new WebSocket("ws://localhost:8080/serial");
       wsSerial.onmessage = (event) => handleWebSocketMessage(event, mapSerial);
@@ -48,9 +51,15 @@
         maxZoom: 19,
         attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       }).addTo(mapConcurrent);
+    </script>
+
+    <script>
 
       const wsConcurrent = new WebSocket("ws://localhost:8080/concurrent");
       wsConcurrent.onmessage = (event) => handleWebSocketMessage(event, mapConcurrent);
+
+    </script>
+    <script>
 
       function handleWebSocketMessage(event, map) {
         try {
