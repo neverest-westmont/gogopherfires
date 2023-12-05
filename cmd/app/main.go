@@ -33,33 +33,26 @@ func main() {
 	// 	log.Fatal(err)
 	// }
 
-	channelConcurrent := make(chan []byte)
-	channelLinear := make(chan []byte)
-	go callConcurrent(channelConcurrent)
-	go callLinear(channelLinear)
+	callConcurrent()
+	callLinear()
 
 	fmt.Println("Waiting for goroutines to finish...")
-
-	linChan := <-channelLinear
-	concChan := <-channelConcurrent
-	fmt.Println(concChan)
-	fmt.Println(linChan)
-
 	fmt.Println("Finished.")
 }
 
-func callLinear(channelLinear chan []byte) {
+func callLinear() {
 	defer timer("callLinear")()
-	displayDataLinear("linearOut1", channelLinear)
+
+	displayDataLinear("linearOut1")
 }
 
-func callConcurrent(channelConcurrent chan []byte) {
+func callConcurrent() {
 	defer timer("callConcurrent")()
 
-	go displayDataConcurrent("concurrentOut1", channelConcurrent)
+	go displayDataConcurrent("concurrentOut1")
 }
 
-func displayDataLinear(outfile string, channelLinear chan []byte) []byte {
+func displayDataLinear(outfile string) []byte {
 
 	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
 	if err != nil {
@@ -83,11 +76,11 @@ func displayDataLinear(outfile string, channelLinear chan []byte) []byte {
 		fires = append(fires, fire)
 	}
 	firesJSON, err := json.Marshal(fires)
-	channelLinear <- firesJSON
+	fmt.Println(outfile, firesJSON)
 	return firesJSON
 }
 
-func displayDataConcurrent(outfile string, channelConcurrent chan []byte) []byte {
+func displayDataConcurrent(outfile string) []byte {
 
 	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
 	if err != nil {
@@ -111,7 +104,7 @@ func displayDataConcurrent(outfile string, channelConcurrent chan []byte) []byte
 		fires = append(fires, fire)
 	}
 	firesJSON, err := json.Marshal(fires)
-	channelConcurrent <- firesJSON
+	fmt.Println(outfile, firesJSON)
 	return firesJSON
 }
 
