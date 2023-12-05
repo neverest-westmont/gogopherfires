@@ -141,16 +141,16 @@ func fetchFireDataSerial() ([]Fire, error) {
 	}
 	defer row.Close()
 
-	var firesS []Fire
+	var fires []Fire
 
 	for row.Next() {
 		var fire Fire
 		row.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
 		log.SetFlags(0)
-		firesS = append(firesS, fire)
+		fires = append(fires, fire)
 	}
 
-	return firesS, nil
+	return fires, nil
 }
 
 func fetchFireDataConcurrent() ([]Fire, error) {
@@ -161,7 +161,7 @@ func fetchFireDataConcurrent() ([]Fire, error) {
 	defer firedb.Close()
 
 	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
-							FROM Fires LIMIT 10;
+							FROM Fires LIMIT 2000;
 							`)
 	if err != nil {
 		return nil, err
@@ -191,15 +191,15 @@ func fetchFireDataConcurrent() ([]Fire, error) {
 		wg.Wait()
 	}()
 
-	var firesC []Fire
+	var fires []Fire
 
 	go func() {
 		for fire := range firesCh {
-			firesC = append(firesC, fire)
+			fires = append(fires, fire)
 		}
 	}()
 
 	<-done
 
-	return firesC, nil
+	return fires, nil
 }

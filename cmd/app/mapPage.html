@@ -30,8 +30,9 @@
     <h1>Concurrent Loading</h1>
     <div id="mapConcurrent" style="height:700px"></div>
   </div> 
+</body>
 
-    <script type="text/javascript" charset="utf-8">
+    <script type="text/javascript" charset="utf-8" async>
       var mapConcurrent = L.map("mapConcurrent").setView([39, -95], 4);
 
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -40,7 +41,7 @@
       }).addTo(mapConcurrent);
     </script>
 
-    <script type="text/javascript" charset="utf-8">
+    <script type="text/javascript" charset="utf-8" async>
       var mapSerial = L.map("mapSerial").setView([39, -95], 4);
 
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -75,13 +76,11 @@
 
             L.marker([latitude, longitude])
               .addTo(map)
-              .bindPopup(`${fire.Name}`)
-              .openPopup();
+              .bindPopup(`${fire.Name}`);
           });
         } catch (error) {
           console.error("Error processing WebSocket message:", error);
         }
       }
     </script>
-</body>
 </html>
