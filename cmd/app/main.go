@@ -38,14 +38,10 @@ func websocketHandler(writer http.ResponseWriter, request *http.Request) {
 
 	var wg sync.WaitGroup
 	defer wg.Wait()
+	wg.Add(1)
+	go sendToWebSocketConcurrent(conn, &wg)
+	sendToWebSocketSerial(conn)
 
-	if request.URL.Path == "/concurrent" {
-		wg.Add(1)
-		go sendToWebSocketConcurrent(conn, &wg)
-	} else if request.URL.Path == "/serial" {
-		wg.Add(1)
-		go sendToWebSocketSerial(conn, &wg)
-	}
 }
 
 func main() {
@@ -60,8 +56,7 @@ func main() {
 	}
 }
 
-func sendToWebSocketSerial(conn *websocket.Conn, wg *sync.WaitGroup) {
-	defer wg.Done()
+func sendToWebSocketSerial(conn *websocket.Conn) {
 
 	startTime := time.Now()
 
@@ -85,7 +80,7 @@ func sendToWebSocketSerial(conn *websocket.Conn, wg *sync.WaitGroup) {
 		log.Println("Error sending fires through WebSocket:", err)
 		return
 	}
-	log.Printf("Sent serial data1")
+	log.Printf("Sent serial data")
 
 }
 
@@ -122,12 +117,12 @@ func sendToWebSocketConcurrent(conn *websocket.Conn, wg *sync.WaitGroup) {
 		log.Println("Error sending fires through WebSocket:", err)
 		return
 	}
-	log.Printf("Sent concurrent data1")
-
+	log.Printf("Sent concurrent data")
 }
 
 func fetchFireDataSerial() ([]Fire, error) {
 	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
+
 	if err != nil {
 		return nil, err
 	}
@@ -187,8 +182,8 @@ func fetchFireDataConcurrent() ([]Fire, error) {
 				firesCh <- fire
 			}(fire)
 		}
-		wg.Wait()
 
+		wg.Wait()
 	}()
 
 	var fires []Fire
@@ -200,7 +195,6 @@ func fetchFireDataConcurrent() ([]Fire, error) {
 	}()
 
 	<-done
-	//wg.Wait()
 
 	return fires, nil
 }
