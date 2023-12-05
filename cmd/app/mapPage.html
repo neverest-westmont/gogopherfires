@@ -24,26 +24,13 @@
   <div class="map-container"> 
     <h1>Serialized Loading</h1>
     <div id="mapSerial" style="height:700px;"></div>
-    <script type="text/javascript" charset="utf-8">
-      
-      var mapSerial = L.map("mapSerial").setView([39, -95], 4);
-
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-      }).addTo(mapSerial);
-    </script>
-
-    <script>
-
-      const wsSerial = new WebSocket("ws://localhost:8080/serial");
-      wsSerial.onmessage = (event) => handleWebSocketMessage(event, mapSerial);
-    </script>
   </div> 
 
   <div class="map-container"> 
     <h1>Concurrent Loading</h1>
     <div id="mapConcurrent" style="height:700px"></div>
+  </div> 
+
     <script type="text/javascript" charset="utf-8">
       var mapConcurrent = L.map("mapConcurrent").setView([39, -95], 4);
 
@@ -53,14 +40,26 @@
       }).addTo(mapConcurrent);
     </script>
 
-    <script>
+    <script type="text/javascript" charset="utf-8">
+      var mapSerial = L.map("mapSerial").setView([39, -95], 4);
 
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(mapSerial);
+    </script>
+
+    <script>
       const wsConcurrent = new WebSocket("ws://localhost:8080/concurrent");
       wsConcurrent.onmessage = (event) => handleWebSocketMessage(event, mapConcurrent);
-
     </script>
-    <script>
 
+    <script>
+      const wsSerial = new WebSocket("ws://localhost:8080/serial");
+      wsSerial.onmessage = (event) => handleWebSocketMessage(event, mapSerial);
+    </script>
+
+    <script>
       function handleWebSocketMessage(event, map) {
         try {
           const fireData = JSON.parse(event.data);
@@ -84,6 +83,5 @@
         }
       }
     </script>
-  </div> 
 </body>
 </html>
