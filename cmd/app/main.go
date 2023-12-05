@@ -68,8 +68,7 @@ func displayDataLinear(outfile string) {
 	defer firedb.Close()
 	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
 							FROM Fires
-							WHERE NWCG_REPORTING_UNIT_NAME = 'Eldorado National Forest'
-							ORDER BY FIRE_SIZE ASC LIMIT 3000000`)
+							ORDER BY FIRE_SIZE ASC LIMIT 30000000`)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -100,8 +99,7 @@ func displayDataConcurrent(outfile string, wg *sync.WaitGroup) {
 	defer firedb.Close()
 	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
 							FROM Fires
-							WHERE NWCG_REPORTING_UNIT_NAME = 'Eldorado National Forest'
-							ORDER BY FIRE_SIZE ASC LIMIT 3000000`)
+							ORDER BY FIRE_SIZE ASC LIMIT 30000000`)
 	if err != nil {
 		log.Fatal(err)
 	}
