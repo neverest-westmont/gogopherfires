@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"log"
 	"net/http"
 	"sync"
@@ -17,6 +18,9 @@ type Fire struct {
 	Latitude  string
 	Longitude string
 	Year      string
+	Forest    string
+	Cause     string
+	County    string
 }
 
 var upgrader = websocket.Upgrader{
@@ -74,22 +78,22 @@ func sendToSerialWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) {
 
 	fires, err := fetchSerialFireData()
 	if err != nil {
-		log.Println("Error fetching data from database:", err)
+		log.Println("Error fetching data serially from database:", err)
 		return
 	}
 
 	firesJSON, err := json.Marshal(fires)
 	if err != nil {
-		log.Println("Error marshaling fires:", err)
+		log.Println("Error marshaling serial fires:", err)
 		return
 	}
 
 	err = conn.WriteMessage(websocket.TextMessage, firesJSON)
 	if err != nil {
-		log.Println("Error sending fires through WebSocket:", err)
+		log.Println("Error sending serial fires through WebSocket:", err)
 		return
 	}
-	log.Printf("Sent serial data")
+	fmt.Println("Websocket successfully sent serial data")
 
 }
 
@@ -98,21 +102,22 @@ func sendToConcurrentWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) {
 
 	fires, err := fetchConcurrentFireData()
 	if err != nil {
-		log.Println("Error fetching data from database:", err)
+		log.Println("Error fetching data concurrently from database:", err)
 		return
 	}
 
 	firesJSON, err := json.Marshal(fires)
 	if err != nil {
-		log.Println("Error marshaling fires:", err)
+		log.Println("Error marshaling concurrent fires:", err)
 		return
 	}
 
 	err = conn.WriteMessage(websocket.TextMessage, firesJSON)
 	if err != nil {
-		log.Println("Error sending fires through WebSocket:", err)
+		log.Println("Error sending concurrent fires through WebSocket:", err)
 		return
 	}
+	fmt.Println("Websocket successfully sent concurrent data")
 }
 
 func fetchSerialFireData() ([]Fire, error) {
@@ -123,19 +128,22 @@ func fetchSerialFireData() ([]Fire, error) {
 	}
 	defer firedb.Close()
 
-	query, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
+	query, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR, NWCG_REPORTING_UNIT_NAME, NWCG_GENERAL_CAUSE, FIPS_NAME
 							FROM Fires
 							LIMIT 1000`)
 	if err != nil {
 		return nil, err
+	} else {
+		fmt.Println("Serial query successful")
 	}
+
 	defer query.Close()
 
 	var fires []Fire
 
 	for query.Next() {
 		var fire Fire
-		query.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
+		query.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year, &fire.Forest, &fire.Cause, &fire.County)
 		log.SetFlags(0)
 		fires = append(fires, fire)
 	}
@@ -146,16 +154,20 @@ func fetchSerialFireData() ([]Fire, error) {
 func fetchConcurrentFireData() ([]Fire, error) {
 	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
 	if err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
+
 	defer firedb.Close()
 
-	query, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
+	query, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR, NWCG_REPORTING_UNIT_NAME, NWCG_GENERAL_CAUSE, FIPS_NAME
 								FROM Fires
 								LIMIT 1000
 								`)
 	if err != nil {
 		return nil, err
+	} else {
+		fmt.Println("Concurrent query successful")
 	}
 
 	defer query.Close()
@@ -174,7 +186,7 @@ func fetchConcurrentFireData() ([]Fire, error) {
 	go func() {
 		for query.Next() {
 			var fire Fire
-			query.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
+			query.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year, &fire.Forest, &fire.Cause, &fire.County)
 			data := []Fire{fire}
 			jobs <- data
 			fires = append(fires, fire)

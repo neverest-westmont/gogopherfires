@@ -48,9 +48,12 @@
               return;
             }
 
-            L.marker([latitude, longitude])
+            L.marker([latitude, longitude], {icon: L.divIcon({className: 'poi', html: '<b>🔥</b>'})})
               .addTo(map)
               .bindPopup(`<strong>${fire.Name}</strong>
+                          <br>Forest: ${fire.Forest}
+                          <br>County: ${fire.County}
+                          <br>Cause: ${fire.Cause}
                           <br>Size: ${fire.FireSize}
                           <br>Year: ${fire.Year}`)
               .openPopup();
@@ -89,12 +92,22 @@
               return;
             }
 
-            L.marker([latitude, longitude])
+            
+            var fireIcon = L.divIcon({ 
+                className: 'poi',
+                html: '<b>🔥</b>'
+            });
+            
+            L.marker([latitude, longitude], {icon: fireIcon})
               .addTo(map)
               .bindPopup(`<strong>${fire.Name}</strong>
+                          <br>Forest: ${fire.Forest}
+                          <br>County: ${fire.County}
+                          <br>Cause: ${fire.Cause}
                           <br>Size: ${fire.FireSize}
                           <br>Year: ${fire.Year}`)
               .openPopup();
+
           });
         } catch (error) {
           console.error("Error processing WebSocket message:", error);
