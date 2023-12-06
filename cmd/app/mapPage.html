@@ -25,7 +25,6 @@
     <h1>Serialized Loading</h1>
     <div id="mapSerial" style="height:700px;"></div>
     <script type="text/javascript" charset="utf-8">
-      
       var mapSerial = L.map("mapSerial").setView([39, -95], 4);
 
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -34,7 +33,32 @@
       }).addTo(mapSerial);
 
       const wsSerial = new WebSocket("ws://localhost:8080/serial");
-      wsSerial.onmessage = (event) => handleWebSocketMessage(event, mapSerial);
+      
+      wsSerial.onmessage = (event) => handleSerialWS(event, mapSerial);
+
+      function handleSerialWS(event, map) {
+        try {
+          const fireData = JSON.parse(event.data);
+
+          fireData.forEach(fire => {
+            const latitude = parseFloat(fire.Latitude);
+            const longitude = parseFloat(fire.Longitude);
+            if (isNaN(latitude) || isNaN(longitude)) {
+              console.error("Invalid latitude or longitude:", fire);
+              return;
+            }
+
+            L.marker([latitude, longitude])
+              .addTo(map)
+              .bindPopup(`<strong>${fire.Name}</strong>
+                          <br>Size: ${fire.FireSize}
+                          <br>Year: ${fire.Year}`)
+              .openPopup();
+          });
+        } catch (error) {
+          console.error("Error processing WebSocket message:", error);
+        }
+      }
     </script>
   </div> 
 
@@ -50,9 +74,9 @@
       }).addTo(mapConcurrent);
 
       const wsConcurrent = new WebSocket("ws://localhost:8080/concurrent");
-      wsConcurrent.onmessage = (event) => handleWebSocketMessage(event, mapConcurrent);
+      wsConcurrent.onmessage = (event) => handleConcurrentWS(event, mapConcurrent);
 
-      function handleWebSocketMessage(event, map) {
+      function handleConcurrentWS(event, map) {
         try {
           const fireData = JSON.parse(event.data);
 
@@ -67,7 +91,9 @@
 
             L.marker([latitude, longitude])
               .addTo(map)
-              .bindPopup(`${fire.Name}`)
+              .bindPopup(`<strong>${fire.Name}</strong>
+                          <br>Size: ${fire.FireSize}
+                          <br>Year: ${fire.Year}`)
               .openPopup();
           });
         } catch (error) {
