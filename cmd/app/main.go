@@ -182,41 +182,30 @@ func fetchConcurrentFireData() ([]Fire, error) {
 		go worker(jobs, results, &wg)
 	}
 
-	var fires []Fire
-
 	go func() {
 		for query.Next() {
 			var fire Fire
 			query.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year, &fire.Forest, &fire.Cause, &fire.County)
 			data := []Fire{fire}
 			jobs <- data
-			fires = append(fires, fire)
 		}
 		close(jobs)
-	}()
-
-	go func() {
 		wg.Wait()
 		close(results)
 	}()
 
-	go func() {
-		wg.Wait()
-	}()
-
-	var resultFires []Fire
+	var fires []Fire
 
 	for result := range results {
-		resultFires = append(resultFires, result)
+		fires = append(fires, result)
 	}
 
-	return resultFires, nil
+	return fires, nil
 }
 
 func worker(jobs <-chan []Fire, results chan<- Fire, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for job := range jobs {
-		fmt.Println(job)
 		results <- job[0]
 	}
 }
