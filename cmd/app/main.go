@@ -2,14 +2,12 @@ package main
 
 import (
 	"database/sql"
-	"fmt"
-	"io"
+	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"sync"
-	"time"
 
+	"github.com/gorilla/websocket"
 	_ "github.com/mattn/go-sqlite3"
 )
 
@@ -21,96 +19,161 @@ type Fire struct {
 	Year      string
 }
 
-func getRoute(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "mapPage.html")
+var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
+	CheckOrigin: func(r *http.Request) bool {
+		return true
+	},
+}
+
+func serialWebsocketHandler(writer http.ResponseWriter, request *http.Request) {
+	conn, err := upgrader.Upgrade(writer, request, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer conn.Close()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	wg.Add(1)
+	go sendToSerialWebSocket(conn, &wg)
+}
+
+func concurrentWebsocketHandler(writer http.ResponseWriter, request *http.Request) {
+	conn, err := upgrader.Upgrade(writer, request, nil)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer conn.Close()
+
+	var wg sync.WaitGroup
+	defer wg.Wait()
+
+	wg.Add(1)
+	go sendToConcurrentWebSocket(conn, &wg)
 }
 
 func main() {
-	// http.HandleFunc("/", getRoute)
-	// if err := http.ListenAndServe(":8080", nil); err != nil {
-	// 	log.Fatal(err)
-	// }
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "mapPage.html")
+	})
+	http.HandleFunc("/serial", serialWebsocketHandler)
+	http.HandleFunc("/concurrent", concurrentWebsocketHandler)
 
-	fmt.Println("Waiting for goroutines to finish...")
-
-	callConcurrent()
-	callLinear()
-
-	fmt.Println("Finished.")
-
-}
-
-func callLinear() {
-	defer timer("callLinear")()
-	displayLinearData("linearOut")
-}
-
-func callConcurrent() {
-	defer timer("callConcurrent")()
-
-	displayConcurrentData("concurrentOut")
-
-}
-
-func displayLinearData(outfile string) {
-	file, err := os.Create(outfile)
-	if err != nil {
+	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func sendToSerialWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	fires, err := fetchSerialFireData()
+	if err != nil {
+		log.Println("Error fetching data from database:", err)
+		return
+	}
+
+	firesJSON, err := json.Marshal(fires)
+	if err != nil {
+		log.Println("Error marshaling fires:", err)
+		return
+	}
+
+	err = conn.WriteMessage(websocket.TextMessage, firesJSON)
+	if err != nil {
+		log.Println("Error sending fires through WebSocket:", err)
+		return
+	}
+}
+
+func sendToConcurrentWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) {
+	defer wg.Done()
+
+	fires, err := fetchConcurrentFireData()
+	if err != nil {
+		log.Println("Error fetching data from database:", err)
+		return
+	}
+
+	firesJSON, err := json.Marshal(fires)
+	if err != nil {
+		log.Println("Error marshaling fires:", err)
+		return
+	}
+
+	err = conn.WriteMessage(websocket.TextMessage, firesJSON)
+	if err != nil {
+		log.Println("Error sending fires through WebSocket:", err)
+		return
+	}
+}
+
+func fetchSerialFireData() ([]Fire, error) {
 	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer firedb.Close()
-	rows, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
-								FROM Fires
-								`)
+
+	query, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
+							FROM Fires
+							LIMIT 1000`)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
-	for rows.Next() {
+	defer query.Close()
+
+	var fires []Fire
+
+	for query.Next() {
 		var fire Fire
-		rows.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
-		mw := io.MultiWriter(file)
-		fmt.Fprintf(mw, "Fire: %s %s %s %s %s\n", fire.Name, fire.FireSize, fire.Latitude, fire.Longitude, fire.Year)
+		query.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
+		log.SetFlags(0)
+		fires = append(fires, fire)
 	}
-	fmt.Println("Linear finished")
+
+	return fires, nil
 }
 
-func displayConcurrentData(outfile string) {
-	file, err := os.Create(outfile)
-	if err != nil {
-		log.Fatal(err)
-	}
+func fetchConcurrentFireData() ([]Fire, error) {
 	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer firedb.Close()
 
-	rows, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
+	query, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
 								FROM Fires
+								LIMIT 1000
 								`)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer rows.Close()
+	defer query.Close()
 
 	var wg sync.WaitGroup
-	jobs := make(chan []string, 200)
-	results := make(chan string, 200)
+	jobs := make(chan []Fire, 200)
+	results := make(chan Fire, 200)
 
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
 		go worker(jobs, results, &wg)
 	}
 
+	var fires []Fire
+
 	go func() {
-		for rows.Next() {
+		for query.Next() {
 			var fire Fire
-			rows.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
-			data := fmt.Sprintf("Fire: %s %s %s %s %s\n", fire.Name, fire.FireSize, fire.Latitude, fire.Longitude, fire.Year)
-			jobs <- []string{data}
+			query.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
+			data := []Fire{fire}
+			jobs <- data
+			fires = append(fires, fire)
 		}
 		close(jobs)
 	}()
@@ -120,25 +183,22 @@ func displayConcurrentData(outfile string) {
 		close(results)
 	}()
 
+	go func() {
+		wg.Wait()
+	}()
+
+	var resultFires []Fire
+
 	for result := range results {
-		mw := io.MultiWriter(file)
-		fmt.Fprint(mw, result)
+		resultFires = append(resultFires, result)
 	}
 
-	fmt.Println("Concurrent finished")
+	return resultFires, nil
 }
 
-func worker(jobs <-chan []string, results chan<- string, wg *sync.WaitGroup) {
+func worker(jobs <-chan []Fire, results chan<- Fire, wg *sync.WaitGroup) {
 	defer wg.Done()
 	for job := range jobs {
 		results <- job[0]
-	}
-}
-
-func timer(name string) func() {
-	start := time.Now()
-	return func() {
-		duration := time.Since(start)
-		fmt.Printf("%s took %10f seconds\n", name, duration.Seconds())
 	}
 }
