@@ -13,12 +13,16 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func getRoute(w http.ResponseWriter, r *http.Request) {
-	http.ServeFile(w, r, "mapPage.html")
+type Fire struct {
+	Name      string
+	FireSize  string
+	Latitude  string
+	Longitude string
+	Year      string
 }
 
-func helloHandler(w http.ResponseWriter, r *http.Request) {
-
+func getRoute(w http.ResponseWriter, r *http.Request) {
+	http.ServeFile(w, r, "mapPage.html")
 }
 
 func main() {
@@ -58,23 +62,17 @@ func displayLinearData(outfile string) {
 		log.Fatal(err)
 	}
 	defer firedb.Close()
-	row, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
+	rows, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
 								FROM Fires
 								`)
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer row.Close()
-	for row.Next() {
-		var name string
-		var firesize string
-		var latitude string
-		var longitude string
-		var year string
-		row.Scan(&name, &firesize, &latitude, &longitude, &year)
-		log.SetFlags(0)
+	for rows.Next() {
+		var fire Fire
+		rows.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
 		mw := io.MultiWriter(file)
-		fmt.Fprintf(mw, "Fire: %s %s %s %s %s\n", name, firesize, latitude, longitude, year)
+		fmt.Fprintf(mw, "Fire: %s %s %s %s %s\n", fire.Name, fire.FireSize, fire.Latitude, fire.Longitude, fire.Year)
 	}
 	fmt.Println("Linear finished")
 }
@@ -84,8 +82,6 @@ func displayConcurrentData(outfile string) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer file.Close()
-
 	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
 	if err != nil {
 		log.Fatal(err)
@@ -94,47 +90,48 @@ func displayConcurrentData(outfile string) {
 
 	rows, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR
 								FROM Fires
-							`)
+								`)
 	if err != nil {
 		log.Fatal(err)
 	}
+	defer rows.Close()
 
 	var wg sync.WaitGroup
-	dataChannel := make(chan string, 100)
+	jobs := make(chan []string, 200)
+	results := make(chan string, 200)
 
-	mw := io.MultiWriter(file)
-
-	// I arbitrarilly chose 300 so that it does 300 queries
-	for i := 0; i < 300; i++ {
+	for i := 0; i < 10; i++ {
 		wg.Add(1)
-		go concurrentQuery(rows, dataChannel, &wg, mw)
+		go worker(jobs, results, &wg)
 	}
 
 	go func() {
-		wg.Wait()
-		close(dataChannel)
+		for rows.Next() {
+			var fire Fire
+			rows.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year)
+			data := fmt.Sprintf("Fire: %s %s %s %s %s\n", fire.Name, fire.FireSize, fire.Latitude, fire.Longitude, fire.Year)
+			jobs <- []string{data}
+		}
+		close(jobs)
 	}()
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	for result := range results {
+		mw := io.MultiWriter(file)
+		fmt.Fprint(mw, result)
+	}
 
 	fmt.Println("Concurrent finished")
 }
 
-func concurrentQuery(rows *sql.Rows, dataChannel chan<- string, wg *sync.WaitGroup, mw io.Writer) {
+func worker(jobs <-chan []string, results chan<- string, wg *sync.WaitGroup) {
 	defer wg.Done()
-	for rows.Next() {
-		var name string
-		var firesize string
-		var latitude string
-		var longitude string
-		var year string
-
-		err := rows.Scan(&name, &firesize, &latitude, &longitude, &year)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		fmt.Fprintf(mw, "Fire: %s %s %s %s %s\n", name, firesize, latitude, longitude, year)
-		dataChannel <- fmt.Sprintf("Fire: %s %s %s %s %s\n", name, firesize, latitude, longitude, year)
-
+	for job := range jobs {
+		results <- job[0]
 	}
 }
 
