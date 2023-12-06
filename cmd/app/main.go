@@ -89,6 +89,8 @@ func sendToSerialWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) {
 		log.Println("Error sending fires through WebSocket:", err)
 		return
 	}
+	log.Printf("Sent serial data")
+
 }
 
 func sendToConcurrentWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) {
@@ -115,6 +117,7 @@ func sendToConcurrentWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) {
 
 func fetchSerialFireData() ([]Fire, error) {
 	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
+
 	if err != nil {
 		return nil, err
 	}
@@ -143,7 +146,7 @@ func fetchSerialFireData() ([]Fire, error) {
 func fetchConcurrentFireData() ([]Fire, error) {
 	firedb, err := sql.Open("sqlite3", "../../internal/db/FPA_FOD_20221014.sqlite")
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
 	defer firedb.Close()
 
@@ -152,8 +155,9 @@ func fetchConcurrentFireData() ([]Fire, error) {
 								LIMIT 1000
 								`)
 	if err != nil {
-		log.Fatal(err)
+		return nil, err
 	}
+
 	defer query.Close()
 
 	var wg sync.WaitGroup

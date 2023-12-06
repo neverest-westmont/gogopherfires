@@ -33,6 +33,7 @@
       }).addTo(mapSerial);
 
       const wsSerial = new WebSocket("ws://localhost:8080/serial");
+      
       wsSerial.onmessage = (event) => handleSerialWS(event, mapSerial);
 
       function handleSerialWS(event, map) {
@@ -82,6 +83,7 @@
           fireData.forEach(fire => {
             const latitude = parseFloat(fire.Latitude);
             const longitude = parseFloat(fire.Longitude);
+
             if (isNaN(latitude) || isNaN(longitude)) {
               console.error("Invalid latitude or longitude:", fire);
               return;
