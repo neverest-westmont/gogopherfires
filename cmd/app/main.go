@@ -130,7 +130,7 @@ func fetchSerialFireData() ([]Fire, error) {
 
 	query, err := firedb.Query(`SELECT FIRE_NAME, FIRE_SIZE, LATITUDE, LONGITUDE, FIRE_YEAR, NWCG_REPORTING_UNIT_NAME, NWCG_GENERAL_CAUSE, FIPS_NAME
 							FROM Fires
-							LIMIT 3000`)
+							LIMIT 1000`)
 	if err != nil {
 		return nil, err
 	} else {
@@ -173,8 +173,8 @@ func fetchConcurrentFireData() ([]Fire, error) {
 	defer query.Close()
 
 	var wg sync.WaitGroup
-	jobs := make(chan []Fire, 1000)
-	results := make(chan Fire, 1000)
+	jobs := make(chan []Fire)
+	results := make(chan Fire)
 
 	for i := 0; i < 10; i++ {
 		wg.Add(1)
@@ -187,6 +187,7 @@ func fetchConcurrentFireData() ([]Fire, error) {
 			query.Scan(&fire.Name, &fire.FireSize, &fire.Latitude, &fire.Longitude, &fire.Year, &fire.Forest, &fire.Cause, &fire.County)
 			data := []Fire{fire}
 			jobs <- data
+
 		}
 		close(jobs)
 		wg.Wait()
