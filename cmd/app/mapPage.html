@@ -22,50 +22,6 @@
 <body>
   <p>Go Gophers Maps</p>
   <div class="map-container"> 
-    <h1>Serialized Loading</h1>
-    <div id="mapSerial" style="height:700px;"></div>
-    <script type="text/javascript" charset="utf-8">
-      var mapSerial = L.map("mapSerial").setView([39, -95], 4);
-
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19,
-        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-      }).addTo(mapSerial);
-
-      const wsSerial = new WebSocket("ws://localhost:8080/serial");
-      
-      wsSerial.onmessage = (event) => handleSerialWS(event, mapSerial);
-
-      function handleSerialWS(event, map) {
-        try {
-          const fireData = JSON.parse(event.data);
-
-          fireData.forEach(fire => {
-            const latitude = parseFloat(fire.Latitude);
-            const longitude = parseFloat(fire.Longitude);
-            if (isNaN(latitude) || isNaN(longitude)) {
-              console.error("Invalid latitude or longitude:", fire);
-              return;
-            }
-
-            L.marker([latitude, longitude], {icon: L.divIcon({className: 'poi', html: '<b>🔥</b>'})})
-              .addTo(map)
-              .bindPopup(`<strong>${fire.Name}</strong>
-                          <br>Forest: ${fire.Forest}
-                          <br>County: ${fire.County}
-                          <br>Cause: ${fire.Cause}
-                          <br>Size: ${fire.FireSize}
-                          <br>Year: ${fire.Year}`)
-              .openPopup();
-          });
-        } catch (error) {
-          console.error("Error processing WebSocket message:", error);
-        }
-      }
-    </script>
-  </div> 
-
-  <div class="map-container"> 
     <h1>Concurrent Loading</h1>
     <div id="mapConcurrent" style="height:700px"></div>
     <script type="text/javascript" charset="utf-8">
@@ -115,5 +71,50 @@
       }
     </script>
   </div> 
+  
+  <div class="map-container"> 
+    <h1>Serialized Loading</h1>
+    <div id="mapSerial" style="height:700px;"></div>
+    <script type="text/javascript" charset="utf-8">
+      var mapSerial = L.map("mapSerial").setView([39, -95], 4);
+
+      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+      }).addTo(mapSerial);
+
+      const wsSerial = new WebSocket("ws://localhost:8080/serial");
+      
+      wsSerial.onmessage = (event) => handleSerialWS(event, mapSerial);
+
+      function handleSerialWS(event, map) {
+        try {
+          const fireData = JSON.parse(event.data);
+
+          fireData.forEach(fire => {
+            const latitude = parseFloat(fire.Latitude);
+            const longitude = parseFloat(fire.Longitude);
+            if (isNaN(latitude) || isNaN(longitude)) {
+              console.error("Invalid latitude or longitude:", fire);
+              return;
+            }
+
+            L.marker([latitude, longitude], {icon: L.divIcon({className: 'poi', html: '<b>🔥</b>'})})
+              .addTo(map)
+              .bindPopup(`<strong>${fire.Name}</strong>
+                          <br>Forest: ${fire.Forest}
+                          <br>County: ${fire.County}
+                          <br>Cause: ${fire.Cause}
+                          <br>Size: ${fire.FireSize}
+                          <br>Year: ${fire.Year}`)
+              .openPopup();
+          });
+        } catch (error) {
+          console.error("Error processing WebSocket message:", error);
+        }
+      }
+    </script>
+  </div> 
+
 </body>
 </html>
