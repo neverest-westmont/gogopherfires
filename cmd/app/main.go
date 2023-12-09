@@ -1,3 +1,14 @@
+/*
+ * Westmont College Fall 2023 CS 105 Programming Languages
+ * Group Project: Golang Fire Map
+ *
+ * Created by:
+ * Trevor English (tenglish@westmont.edu)
+ * Nancy Everest (neverest@westmont.edu)
+ * Allie Peterson (alpeterson@westmont.edu)
+ *
+ */
+
 package main
 
 import (
@@ -31,6 +42,18 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+func main() {
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, "mapPage.html")
+	})
+	http.HandleFunc("/serial", serialWebsocketHandler)
+	http.HandleFunc("/concurrent", concurrentWebsocketHandler)
+
+	if err := http.ListenAndServe(":8080", nil); err != nil {
+		log.Fatal(err)
+	}
+}
+
 func serialWebsocketHandler(writer http.ResponseWriter, request *http.Request) {
 	conn, err := upgrader.Upgrade(writer, request, nil)
 	if err != nil {
@@ -59,18 +82,6 @@ func concurrentWebsocketHandler(writer http.ResponseWriter, request *http.Reques
 
 	wg.Add(1)
 	go sendToConcurrentWebSocket(conn, &wg)
-}
-
-func main() {
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "mapPage.html")
-	})
-	http.HandleFunc("/serial", serialWebsocketHandler)
-	http.HandleFunc("/concurrent", concurrentWebsocketHandler)
-
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatal(err)
-	}
 }
 
 func sendToSerialWebSocket(conn *websocket.Conn, wg *sync.WaitGroup) {
